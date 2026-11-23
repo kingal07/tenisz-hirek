@@ -1,0 +1,51 @@
+name: Frissítés
+
+on:
+  schedule:
+    - cron: "17 */2 * * *"   # 2 óránként (UTC szerint, a 17. percben)
+  workflow_dispatch:          # kézi indítás az Actions fülön
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Hírek begyűjtése
+        run: python build.py
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - name: Életben tartás
+        # A GitHub 60 nap tétlenség után leállítja az időzített futást; ez havonta egy üres commitot tesz.
+        run: |
+          last=$(git log -1 --format=%ct)
+          if [ $(( $(date +%s) - last )) -gt $(( 45 * 86400 )) ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "Életben tartás"
+            git push
+          fi
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
