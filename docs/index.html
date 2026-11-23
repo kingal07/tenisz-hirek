@@ -71,6 +71,9 @@
   .fb:hover { border-color: var(--accent); }
   .empty { color: var(--muted); padding: 30px 0; text-align: center; }
   .more { display: block; margin: 16px auto 0; }
+  .upd { display: flex; align-items: center; gap: 6px; }
+  #reload { border: 1px solid var(--line); background: var(--card); color: var(--accent); border-radius: 999px;
+    width: 32px; height: 32px; font-size: 17px; line-height: 1; cursor: pointer; padding: 0; }
   .search { max-width: 1100px; margin: 0 auto; padding: 8px 0 10px; }
   .search input { width: 100%; font: inherit; font-size: 16px; padding: 8px 12px; border-radius: 10px;
     border: 1px solid var(--line); background: var(--card); color: var(--text); outline: none; }
@@ -84,7 +87,7 @@
 </head>
 <body>
 <header>
-  <div class="top"><h1>🎾 Tenisz<span>hírek</span></h1><div id="updated"></div></div>
+  <div class="top"><h1>🎾 Tenisz<span>hírek</span></h1><div class="upd"><span id="updated"></span><button id="reload" title="Frissítés" aria-label="Frissítés">↻</button></div></div>
   <nav>
     <button data-tab="hirek" class="on">Hírek</button>
     <button data-tab="videok">Videók</button>
@@ -95,10 +98,26 @@
 </header>
 <main id="app"></main>
 
-<script src="data.js"></script>
-<script src="kategoriak.js"></script>
 <script>
-(function () {
+// Az adatot minden megnyitáskor frissen tölti be (nem a telefon tárolt példányát használja).
+const LOADED_AT = Date.now();
+function loadScripts(files, cb) {
+  let left = files.length;
+  files.forEach(f => {
+    const s = document.createElement('script');
+    s.src = f + '?t=' + LOADED_AT;
+    s.onload = s.onerror = () => { if (--left === 0) cb(); };
+    document.head.appendChild(s);
+  });
+}
+document.getElementById('reload').addEventListener('click', () => location.reload());
+// Ha az alkalmazás a háttérből tér vissza, és 15 percnél régebbi az adat, újratölt.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && Date.now() - LOADED_AT > 15 * 60000) location.reload();
+});
+loadScripts(['kategoriak.js', 'data.js'], start);
+
+function start() {
   const D = window.TENISZ || { hirek: [], videok: [], versenyek: [], facebook: [] };
   const app = document.getElementById('app');
   const esc = s => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -281,7 +300,7 @@
     qTimer = setTimeout(() => { q = norm(qInput.value.trim()); shown = 60; render(); }, 150);
   });
   render();
-})();
+}
 </script>
 </body>
 </html>
