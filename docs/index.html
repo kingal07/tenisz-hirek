@@ -228,7 +228,8 @@
     const today = new Date().toISOString().slice(0, 10);
     const all = D.versenyek.filter(t => hit(t.nev, t.varos, t.kategoria, t.tura));
     const now = all.filter(t => t.kezdes <= today && t.vege >= today);
-    const next = all.filter(t => t.kezdes > today).slice(0, q ? 200 : 40);
+    const upcoming = all.filter(t => t.kezdes > today);
+    const next = upcoming.slice(0, q ? upcoming.length : shown);
     const ics = new URL('versenyek.ics', location.href).href;
     const webcal = ics.replace(/^https?:/, 'webcal:');
     const gcal = 'https://calendar.google.com/calendar/r?cid=' + encodeURIComponent(webcal);
@@ -243,7 +244,8 @@
       <div class="section-title">Most zajlik</div>
       <div class="list">${now.map(tourRow).join('') || '<div class="note">Most nincs verseny.</div>'}</div>
       <div class="section-title">Következő versenyek</div>
-      <div class="list">${next.map(tourRow).join('') || '<div class="note">Nincs adat.</div>'}</div>`;
+      <div class="list">${next.map(tourRow).join('') || '<div class="note">Nincs találat.</div>'}</div>
+      ${upcoming.length > next.length ? `<button class="chip more" data-more>Továbbiak (még ${upcoming.length - next.length})</button>` : ''}`;
   }
 
   function renderFacebook() {

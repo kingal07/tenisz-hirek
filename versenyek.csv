@@ -1,4 +1,7 @@
 tura,kategoria,nev,varos,kezdes,vege,megjegyzes
+WTA,BJK Cup,Billie Jean King Kupa osztályozó 2026 (pl. USA–Magyarország),több helyszín,2026-11-20,2026-11-22,
+ATP,Davis Cup,Davis Kupa döntő 2026 (Final 8),Bologna,2026-11-24,2026-11-29,
+ATP,Next Gen,Next Gen ATP Finals 2026,Reggio Calabria,2026-12-09,2026-12-13,
 ATP+WTA,United Cup,United Cup,Perth & Sydney,2027-01-01,2027-01-10,a befejezés becsült
 ATP+WTA,ATP 250 / WTA 500,Brisbane International,Brisbane,2027-01-04,2027-01-10,
 ATP,ATP 250,Bank of China Hong Kong Tennis Open,Hongkong,2027-01-04,2027-01-10,
@@ -11,6 +14,7 @@ ATP,ATP 250,Open Occitanie,Montpellier,2027-02-01,2027-02-07,
 WTA,WTA 500,Mubadala Abu Dhabi Open,Abu-Dzabi,2027-02-01,2027-02-07,WTA: nem hivatalos dátum
 WTA,WTA 250,Transylvania Open,Kolozsvár,2027-02-01,2027-02-07,WTA: nem hivatalos dátum
 WTA,WTA 250,Ostrava Open,Ostrava,2027-02-01,2027-02-07,WTA: nem hivatalos dátum
+ATP,Davis Cup,Davis Kupa selejtező 1. kör,több helyszín,2027-02-05,2027-02-07,egyes párharcok egy nappal később lehetnek
 ATP,ATP 500,Dallas Open,Dallas,2027-02-08,2027-02-14,
 ATP,ATP 500,ABN AMRO Open,Rotterdam,2027-02-08,2027-02-14,
 ATP,ATP 250,Argentina Open,Buenos Aires,2027-02-08,2027-02-14,
@@ -33,6 +37,7 @@ WTA,WTA 500,Charleston Open,Charleston,2027-03-29,2027-04-04,WTA: nem hivatalos 
 WTA,WTA 250,Copa Colsanitas,Bogotá,2027-03-29,2027-04-04,WTA: nem hivatalos dátum
 ATP,Masters 1000,Rolex Monte-Carlo Masters,Monte-Carlo,2027-04-04,2027-04-11,
 WTA,WTA 500,Upper Austria Ladies Linz,Linz,2027-04-05,2027-04-11,WTA: nem hivatalos dátum
+WTA,BJK Cup,Billie Jean King Kupa selejtező,több helyszín,2027-04-09,2027-04-10,becsült dátum (2026-ban április 10–11.)
 ATP,ATP 500,Barcelona Open Banc Sabadell,Barcelona,2027-04-12,2027-04-18,
 ATP,ATP 500,BMW Open,München,2027-04-12,2027-04-18,
 WTA,WTA 500,Porsche Tennis Grand Prix,Stuttgart,2027-04-12,2027-04-18,WTA: nem hivatalos dátum
@@ -75,8 +80,10 @@ WTA,WTA 500,Monterrey Open,Monterrey,2027-08-23,2027-08-28,WTA: nem hivatalos d�
 ATP+WTA,Grand Slam,US Open,New York,2027-08-29,2027-09-12,
 WTA,WTA 500,Guadalajara Open,Guadalajara,2027-09-13,2027-09-19,WTA: nem hivatalos dátum
 WTA,WTA 250,SP Open,São Paulo,2027-09-13,2027-09-19,WTA: nem hivatalos dátum
+ATP,Davis Cup,Davis Kupa selejtező 2. kör,több helyszín,2027-09-17,2027-09-19,becsült napok (a 37. héten)
 WTA,WTA 500,Singapore Tennis Open,Szingapúr,2027-09-20,2027-09-26,WTA: nem hivatalos dátum
 WTA,WTA 250,Korea Open,Szöul,2027-09-20,2027-09-26,WTA: nem hivatalos dátum
+WTA,BJK Cup,Billie Jean King Kupa döntő,helyszín később,2027-09-21,2027-09-26,becsült dátum (2026-ban szeptember 22–27.)
 ATP,ATP 250,Chengdu Open,Csengtu,2027-09-22,2027-09-28,
 ATP,ATP 250,Hangzhou Open,Hangcsou,2027-09-22,2027-09-28,
 ATP,Laver Cup,Laver Cup,helyszín később,2027-09-24,2027-09-26,
@@ -100,5 +107,6 @@ WTA,WTA 250,Philippine Women's Open,Manila,2027-11-01,2027-11-07,WTA: nem hivata
 ATP,ATP 250,European Open,Brüsszel,2027-11-07,2027-11-13,
 WTA,WTA Finals,WTA Finals,Charlotte,2027-11-08,2027-11-14,WTA: nem hivatalos dátum
 ATP,ATP Finals,Nitto ATP Finals,Torino,2027-11-14,2027-11-21,
-ATP,Davis Cup,Davis Kupa döntő,Olaszország,2027-11-22,2027-11-28,a pontos napok később
+WTA,BJK Cup,Billie Jean King Kupa osztályozó (play-off),több helyszín,2027-11-19,2027-11-21,becsült dátum (2026-ban november 21–22.)
+ATP,Davis Cup,Davis Kupa döntő 2027 (Final 8),Olaszország,2027-11-22,2027-11-28,a pontos napok később
 ATP,Next Gen,Next Gen ATP Finals,helyszín később,2027-12-13,2027-12-18,becsült dátum (a 50. hét)
