@@ -71,6 +71,14 @@
   .fb:hover { border-color: var(--accent); }
   .empty { color: var(--muted); padding: 30px 0; text-align: center; }
   .more { display: block; margin: 16px auto 0; }
+  .search { max-width: 1100px; margin: 0 auto; padding: 8px 0 10px; }
+  .search input { width: 100%; font: inherit; font-size: 16px; padding: 8px 12px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--card); color: var(--text); outline: none; }
+  .search input:focus { border-color: var(--accent); }
+  .chips + .chips { margin-top: -6px; }
+  .chip.cat.on { background: var(--text); border-color: var(--text); color: var(--bg); }
+  .count { font-size: 12px; color: var(--muted); margin: -6px 0 10px; }
+  select.chip { appearance: auto; max-width: 100%; }
   @media (max-width: 520px) { .news img { width: 76px; height: 60px; } .tour { grid-template-columns: 78px 1fr; } }
 </style>
 </head>
@@ -83,10 +91,12 @@
     <button data-tab="versenyek">Versenyek</button>
     <button data-tab="facebook">Facebook</button>
   </nav>
+  <div class="search"><input id="q" type="search" placeholder="Keresés…" autocomplete="off" aria-label="Keresés"></div>
 </header>
 <main id="app"></main>
 
 <script src="data.js"></script>
+<script src="kategoriak.js"></script>
 <script>
 (function () {
   const D = window.TENISZ || { hirek: [], videok: [], versenyek: [], facebook: [] };
@@ -113,13 +123,61 @@
       new Date(D.frissitve).toLocaleString('hu-HU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
+  // ---- Női / férfi / páros besorolás (szabályok: kategoriak.js) ----
+  const K = window.KATEGORIAK || { forras: {}, csakForras: [], noiSzavak: [], ferfiSzavak: [], parosSzavak: [],
+    vegyesSzavak: [], noiNevek: [], ferfiNevek: [] };
+  const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const L = '[\\p{L}\\p{N}]';
+  const words = list => list.length ? new RegExp(`(?<!${L})(?:${list.map(reEsc).join('|')})(?!${L})`, 'iu') : /$^/;
+  const names = list => list.length ? new RegExp(`(?<!${L})(?:${list.map(reEsc).join('|')})`, 'u') : /$^/;
+  const R = {
+    noi: words(K.noiSzavak), ferfi: words(K.ferfiSzavak), paros: words(K.parosSzavak), vegyes: words(K.vegyesSzavak),
+    noiNev: names(K.noiNevek), ferfiNev: names(K.ferfiNevek),
+    per: /(?<![\p{L}])\p{Lu}[\p{L}'-]+\s?\/\s?\p{Lu}[\p{L}'-]+/u
+  };
+  function tag(x) {
+    const t = `${x.cim} ${x.kivonat || ''}`;
+    const g = new Set();
+    if (K.csakForras.includes(x.forras)) g.add(K.forras[x.forras]);
+    else {
+      if (R.noi.test(t) || R.noiNev.test(t)) g.add('noi');
+      if (R.ferfi.test(t) || R.ferfiNev.test(t)) g.add('ferfi');
+      if (!g.size && K.forras[x.forras]) g.add(K.forras[x.forras]);
+    }
+    const out = new Set();
+    if (R.vegyes.test(t)) out.add('vegyes');
+    else if (R.paros.test(t) || (K.perJel && R.per.test(x.cim))) {
+      if (!g.size) { out.add('noi_paros'); out.add('ferfi_paros'); }
+      g.forEach(v => out.add(v + '_paros'));
+    } else g.forEach(v => out.add(v));
+    return out;
+  }
+  [...D.hirek, ...D.videok].forEach(x => { x._k = tag(x); });
+
+  // ---- Keresés (kis-/nagybetű és ékezet nélkül) ----
+  const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const qInput = document.getElementById('q');
+  let q = '';
+  const hit = (...fields) => !q || q.split(/\s+/).every(w => norm(fields.join(' ')).includes(w));
+
   let tab = store.get('tab', 'hirek');
   let lang = store.get('lang', 'mind');
+  let kat = store.get('kat', 'mind');
   let vidSrc = 'mind';
   let shown = 60;
 
+  const KATS = [['mind', 'Mind'], ['noi', 'Női'], ['ferfi', 'Férfi'], ['noi_paros', 'Női páros'],
+    ['ferfi_paros', 'Férfi páros'], ['vegyes', 'Vegyes páros']];
+  function katChips(pool) {
+    return KATS.filter(([k]) => k === 'mind' || k === kat || pool.some(x => x._k.has(k)))
+      .map(([k, l]) => `<button class="chip cat ${kat === k ? 'on' : ''}" data-kat="${k}">${l}</button>`).join('');
+  }
+  const katOk = x => kat === 'mind' || x._k.has(kat);
+  const countLine = (n, total) => (q || n !== total) ? `<div class="count">${n} találat</div>` : '';
+
   function renderNews() {
-    const items = D.hirek.filter(x => lang === 'mind' || x.nyelv === lang);
+    const pool = D.hirek.filter(x => (lang === 'mind' || x.nyelv === lang) && hit(x.cim, x.kivonat, x.forras));
+    const items = pool.filter(katOk);
     const chips = [['mind', 'Mind'], ['hu', 'Magyar'], ['en', 'Angol']]
       .map(([k, l]) => `<button class="chip ${lang === k ? 'on' : ''}" data-lang="${k}">${l}</button>`).join('');
     const list = items.slice(0, shown).map(x => `
@@ -131,23 +189,28 @@
           ${x.kivonat ? `<p>${esc(x.kivonat)}</p>` : ''}
         </div>
       </a>`).join('');
-    app.innerHTML = `<div class="chips">${chips}</div>
-      <div class="list">${list || '<div class="empty">Nincs friss hír.</div>'}</div>
+    app.innerHTML = `<div class="chips">${chips}</div><div class="chips">${katChips(pool)}</div>
+      ${countLine(items.length, D.hirek.length)}
+      <div class="list">${list || '<div class="empty">Nincs találat.</div>'}</div>
       ${items.length > shown ? '<button class="chip more" data-more>Továbbiak</button>' : ''}`;
   }
 
   function renderVideos() {
     const sources = [...new Set(D.videok.map(v => v.forras))].sort((a, b) => a.localeCompare(b));
-    const items = D.videok.filter(v => vidSrc === 'mind' || v.forras === vidSrc);
-    const chips = ['mind', ...sources].map(s =>
-      `<button class="chip ${vidSrc === s ? 'on' : ''}" data-vsrc="${esc(s)}">${s === 'mind' ? 'Mind' : esc(s)}</button>`).join('');
+    const pool = D.videok.filter(v => (vidSrc === 'mind' || v.forras === vidSrc) && hit(v.cim, v.forras));
+    const items = pool.filter(katOk);
+    const chips = `<select class="chip" id="vsrc" aria-label="Csatorna">
+        <option value="mind">Minden csatorna</option>
+        ${sources.map(s => `<option value="${esc(s)}" ${vidSrc === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}
+      </select></div><div class="chips">${katChips(pool)}`;
     const grid = items.slice(0, shown).map(v => `
       <a class="vid" href="${esc(v.link)}" target="_blank" rel="noopener">
         <img src="${esc(v.video_id ? 'https://i.ytimg.com/vi/' + v.video_id + '/mqdefault.jpg' : v.kep)}" alt="" loading="lazy">
         <div><h3>${esc(v.cim)}</h3><div class="meta"><span class="src">${esc(v.forras)}</span><span>${ago(v.datum)}</span></div></div>
       </a>`).join('');
     app.innerHTML = `<div class="chips">${chips}</div>
-      <div class="grid">${grid || '<div class="empty">Nincs friss videó.</div>'}</div>
+      ${countLine(items.length, D.videok.length)}
+      <div class="grid">${grid || '<div class="empty">Nincs találat.</div>'}</div>
       ${items.length > shown ? '<button class="chip more" data-more>Továbbiak</button>' : ''}`;
   }
 
@@ -163,8 +226,9 @@
 
   function renderTournaments() {
     const today = new Date().toISOString().slice(0, 10);
-    const now = D.versenyek.filter(t => t.kezdes <= today && t.vege >= today);
-    const next = D.versenyek.filter(t => t.kezdes > today).slice(0, 40);
+    const all = D.versenyek.filter(t => hit(t.nev, t.varos, t.kategoria, t.tura));
+    const now = all.filter(t => t.kezdes <= today && t.vege >= today);
+    const next = all.filter(t => t.kezdes > today).slice(0, q ? 200 : 40);
     const ics = new URL('versenyek.ics', location.href).href;
     const webcal = ics.replace(/^https?:/, 'webcal:');
     const gcal = 'https://calendar.google.com/calendar/r?cid=' + encodeURIComponent(webcal);
@@ -185,7 +249,7 @@
   function renderFacebook() {
     app.innerHTML = `
       <p class="note" style="margin-top:0">A Facebook nem engedi automatikusan begyűjteni a posztokat, ezért ezek az oldalak egy kattintással nyílnak meg.</p>
-      <div class="list">${D.facebook.map(f => `
+      <div class="list">${D.facebook.filter(f => hit(f.nev, f.url)).map(f => `
         <a class="fb" href="${esc(f.url)}" target="_blank" rel="noopener"><b>${esc(f.nev)}</b><span class="note">Megnyitás →</span></a>`).join('')}
       </div>`;
   }
@@ -202,9 +266,17 @@
   app.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.lang) { lang = b.dataset.lang; store.set('lang', lang); shown = 60; }
-    else if (b.dataset.vsrc) { vidSrc = b.dataset.vsrc; shown = 60; }
+    else if (b.dataset.kat) { kat = b.dataset.kat; store.set('kat', kat); shown = 60; }
     else if (b.hasAttribute('data-more')) { shown += 60; }
     render();
+  });
+  app.addEventListener('change', e => {
+    if (e.target.id === 'vsrc') { vidSrc = e.target.value; shown = 60; render(); }
+  });
+  let qTimer;
+  qInput.addEventListener('input', () => {
+    clearTimeout(qTimer);
+    qTimer = setTimeout(() => { q = norm(qInput.value.trim()); shown = 60; render(); }, 150);
   });
   render();
 })();

@@ -3,6 +3,7 @@
   "napok_hirek": 14,
   "napok_videok": 21,
   "max_video_csatornankent": 6,
+  "kizart_cimek": ["Hírek és Információ", "Tenisz hírek & eredmények", "Hírek & eredmények", "Hírek és eredmények"],
 
   "hirek": [
     { "nev": "TeniszVilág", "nyelv": "hu", "url": "https://www.teniszvilag.com/feed/" },

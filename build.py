@@ -112,12 +112,14 @@ def google_news_url(query, lang):
     return f"https://news.google.com/rss/search?q={q}&hl=en-US&gl=US&ceid=US:en"
 
 
-def get_news(src, max_age):
+def get_news(src, max_age, skip_titles=()):
     url = src.get("url") or google_news_url(src["google_news"], src.get("google_nyelv", "en"))
     out = []
     for it in parse_feed(fetch(url)):
         if not it["datum"] or it["datum"] < NOW - max_age or not it["link"]:
             continue
+        if any(s.lower() in it["cim"].lower() for s in skip_titles):
+            continue  # pl. szerzői vagy gyűjtőoldalak, nem cikkek
         cim = it["cim"]
         if "google_news" in src:
             # A Google Hírek a cím végére teszi a forrást (" - ATP Tour"), és a kivonata csak egy link.
@@ -242,7 +244,7 @@ def main():
     def run(kind, src):
         try:
             if kind == "hir":
-                return get_news(src, news_age)
+                return get_news(src, news_age, cfg.get("kizart_cimek", []))
             return get_videos(src, vid_age, cfg["max_video_csatornankent"], kw)
         except Exception as e:  # egy hibás forrás ne állítsa le az egészet
             hiba.append(f"{src['nev']}: {e}")
