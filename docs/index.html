@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Teniszhírek</title>
+<meta name="theme-color" content="#1f6f4a">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root {
+    --bg: #f5f6f3; --card: #ffffff; --text: #1d2420; --muted: #66706a; --line: #e3e6e1;
+    --accent: #1f6f4a; --accent-soft: #e3f1e9; --ball: #c9dc3c; --hu: #b4442f; --en: #2f5fb4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121614; --card: #1b201d; --text: #e7ece8; --muted: #9aa59e; --line: #2a312d;
+      --accent: #5cc48f; --accent-soft: #1f3329; --hu: #e0846f; --en: #7fa3e8;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  a { color: inherit; text-decoration: none; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--bg);
+    border-bottom: 1px solid var(--line); padding: 12px 16px 0; padding-top: max(12px, env(safe-area-inset-top)); }
+  .top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0; letter-spacing: -.01em; }
+  h1 span { color: var(--accent); }
+  #updated { font-size: 12px; color: var(--muted); }
+  nav { display: flex; gap: 4px; max-width: 1100px; margin: 10px auto 0; overflow-x: auto; }
+  nav button { flex: none; border: 0; background: none; color: var(--muted); font: inherit; font-weight: 600;
+    padding: 8px 12px 10px; border-bottom: 3px solid transparent; cursor: pointer; }
+  nav button.on { color: var(--text); border-bottom-color: var(--accent); }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .chip { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px;
+    padding: 5px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .list { display: grid; gap: 10px; }
+  .news { display: flex; gap: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+  .news:hover { border-color: var(--accent); }
+  .news img { width: 96px; height: 72px; object-fit: cover; border-radius: 8px; flex: none; background: var(--line); }
+  .news h3 { font-size: 15.5px; margin: 2px 0 4px; line-height: 1.3; }
+  .news p { margin: 0; color: var(--muted); font-size: 13.5px; }
+  .meta { font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .src { font-weight: 700; color: var(--accent); }
+  .lang { font-size: 10.5px; font-weight: 700; padding: 1px 5px; border-radius: 4px; border: 1px solid currentColor; }
+  .lang.hu { color: var(--hu); } .lang.en { color: var(--en); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  .vid { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+  .vid:hover { border-color: var(--accent); }
+  .vid img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; background: var(--line); }
+  .vid div { padding: 10px 12px 12px; }
+  .vid h3 { font-size: 14.5px; margin: 0 0 6px; line-height: 1.3; }
+  .section-title { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 20px 0 8px; }
+  .section-title:first-child { margin-top: 0; }
+  .tour { display: grid; grid-template-columns: 92px 1fr; gap: 12px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 12px; padding: 10px 12px; align-items: center; }
+  .tour .d { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .tour b { font-size: 15px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); margin-right: 4px; }
+  .tag.gs { background: var(--ball); color: #1d2420; }
+  .note { font-size: 12px; color: var(--muted); }
+  .box { background: var(--accent-soft); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; }
+  .box p { margin: 0 0 8px; }
+  .btn { display: inline-block; background: var(--accent); color: #fff; border-radius: 8px; padding: 8px 14px; font-weight: 600; margin: 4px 6px 0 0; }
+  .btn.alt { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .fb { display: flex; justify-content: space-between; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .fb:hover { border-color: var(--accent); }
+  .empty { color: var(--muted); padding: 30px 0; text-align: center; }
+  .more { display: block; margin: 16px auto 0; }
+  @media (max-width: 520px) { .news img { width: 76px; height: 60px; } .tour { grid-template-columns: 78px 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="top"><h1>🎾 Tenisz<span>hírek</span></h1><div id="updated"></div></div>
+  <nav>
+    <button data-tab="hirek" class="on">Hírek</button>
+    <button data-tab="videok">Videók</button>
+    <button data-tab="versenyek">Versenyek</button>
+    <button data-tab="facebook">Facebook</button>
+  </nav>
+</header>
+<main id="app"></main>
+
+<script src="data.js"></script>
+<script>
+(function () {
+  const D = window.TENISZ || { hirek: [], videok: [], versenyek: [], facebook: [] };
+  const app = document.getElementById('app');
+  const esc = s => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const store = {
+    get(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  };
+
+  function ago(iso) {
+    const d = new Date(iso), m = Math.round((Date.now() - d) / 60000);
+    if (m < 60) return Math.max(m, 1) + ' perce';
+    const h = Math.round(m / 60);
+    if (h < 24) return h + ' órája';
+    const n = Math.round(h / 24);
+    if (n < 7) return n + ' napja';
+    return d.toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' });
+  }
+  const fmtDay = s => new Date(s + 'T12:00:00').toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' });
+
+  if (D.frissitve) {
+    document.getElementById('updated').textContent = 'Frissítve: ' +
+      new Date(D.frissitve).toLocaleString('hu-HU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  let tab = store.get('tab', 'hirek');
+  let lang = store.get('lang', 'mind');
+  let vidSrc = 'mind';
+  let shown = 60;
+
+  function renderNews() {
+    const items = D.hirek.filter(x => lang === 'mind' || x.nyelv === lang);
+    const chips = [['mind', 'Mind'], ['hu', 'Magyar'], ['en', 'Angol']]
+      .map(([k, l]) => `<button class="chip ${lang === k ? 'on' : ''}" data-lang="${k}">${l}</button>`).join('');
+    const list = items.slice(0, shown).map(x => `
+      <a class="news" href="${esc(x.link)}" target="_blank" rel="noopener">
+        ${x.kep ? `<img src="${esc(x.kep)}" alt="" loading="lazy" onerror="this.remove()">` : ''}
+        <div>
+          <div class="meta"><span class="src">${esc(x.forras)}</span><span class="lang ${x.nyelv}">${x.nyelv.toUpperCase()}</span><span>${ago(x.datum)}</span></div>
+          <h3>${esc(x.cim)}</h3>
+          ${x.kivonat ? `<p>${esc(x.kivonat)}</p>` : ''}
+        </div>
+      </a>`).join('');
+    app.innerHTML = `<div class="chips">${chips}</div>
+      <div class="list">${list || '<div class="empty">Nincs friss hír.</div>'}</div>
+      ${items.length > shown ? '<button class="chip more" data-more>Továbbiak</button>' : ''}`;
+  }
+
+  function renderVideos() {
+    const sources = [...new Set(D.videok.map(v => v.forras))].sort((a, b) => a.localeCompare(b));
+    const items = D.videok.filter(v => vidSrc === 'mind' || v.forras === vidSrc);
+    const chips = ['mind', ...sources].map(s =>
+      `<button class="chip ${vidSrc === s ? 'on' : ''}" data-vsrc="${esc(s)}">${s === 'mind' ? 'Mind' : esc(s)}</button>`).join('');
+    const grid = items.slice(0, shown).map(v => `
+      <a class="vid" href="${esc(v.link)}" target="_blank" rel="noopener">
+        <img src="${esc(v.video_id ? 'https://i.ytimg.com/vi/' + v.video_id + '/mqdefault.jpg' : v.kep)}" alt="" loading="lazy">
+        <div><h3>${esc(v.cim)}</h3><div class="meta"><span class="src">${esc(v.forras)}</span><span>${ago(v.datum)}</span></div></div>
+      </a>`).join('');
+    app.innerHTML = `<div class="chips">${chips}</div>
+      <div class="grid">${grid || '<div class="empty">Nincs friss videó.</div>'}</div>
+      ${items.length > shown ? '<button class="chip more" data-more>Továbbiak</button>' : ''}`;
+  }
+
+  function tourRow(t) {
+    const gs = t.kategoria === 'Grand Slam';
+    return `<div class="tour">
+      <div class="d">${fmtDay(t.kezdes)} –<br>${fmtDay(t.vege)}</div>
+      <div><span class="tag ${gs ? 'gs' : ''}">${esc(t.kategoria)}</span><span class="tag">${esc(t.tura)}</span><br>
+        <b>${esc(t.nev)}</b> <span class="note">· ${esc(t.varos)}</span>
+        ${t.megjegyzes ? `<div class="note">${esc(t.megjegyzes)}</div>` : ''}</div>
+    </div>`;
+  }
+
+  function renderTournaments() {
+    const today = new Date().toISOString().slice(0, 10);
+    const now = D.versenyek.filter(t => t.kezdes <= today && t.vege >= today);
+    const next = D.versenyek.filter(t => t.kezdes > today).slice(0, 40);
+    const ics = new URL('versenyek.ics', location.href).href;
+    const webcal = ics.replace(/^https?:/, 'webcal:');
+    const gcal = 'https://calendar.google.com/calendar/r?cid=' + encodeURIComponent(webcal);
+    const online = location.protocol.startsWith('http');
+    app.innerHTML = `
+      <div class="box">
+        <p><b>Versenynaptár a telefonodra</b>: minden ATP- és WTA-verseny kezdete és döntős napjai, automatikusan frissül.</p>
+        ${online ? `<a class="btn" href="${gcal}" target="_blank" rel="noopener">Hozzáadás a Google Naptárhoz</a>
+        <a class="btn alt" href="${webcal}">Más naptáralkalmazás</a>` :
+        '<p class="note">A feliratkozás gomb a weboldal közzététele után működik.</p>'}
+      </div>
+      <div class="section-title">Most zajlik</div>
+      <div class="list">${now.map(tourRow).join('') || '<div class="note">Most nincs verseny.</div>'}</div>
+      <div class="section-title">Következő versenyek</div>
+      <div class="list">${next.map(tourRow).join('') || '<div class="note">Nincs adat.</div>'}</div>`;
+  }
+
+  function renderFacebook() {
+    app.innerHTML = `
+      <p class="note" style="margin-top:0">A Facebook nem engedi automatikusan begyűjteni a posztokat, ezért ezek az oldalak egy kattintással nyílnak meg.</p>
+      <div class="list">${D.facebook.map(f => `
+        <a class="fb" href="${esc(f.url)}" target="_blank" rel="noopener"><b>${esc(f.nev)}</b><span class="note">Megnyitás →</span></a>`).join('')}
+      </div>`;
+  }
+
+  function render() {
+    document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+    ({ hirek: renderNews, videok: renderVideos, versenyek: renderTournaments, facebook: renderFacebook }[tab] || renderNews)();
+  }
+
+  document.querySelector('nav').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    tab = b.dataset.tab; shown = 60; store.set('tab', tab); render(); window.scrollTo(0, 0);
+  });
+  app.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.lang) { lang = b.dataset.lang; store.set('lang', lang); shown = 60; }
+    else if (b.dataset.vsrc) { vidSrc = b.dataset.vsrc; shown = 60; }
+    else if (b.hasAttribute('data-more')) { shown += 60; }
+    render();
+  });
+  render();
+})();
+</script>
+</body>
+</html>

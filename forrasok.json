@@ -1,0 +1,54 @@
+{
+  "_leiras": "Itt lehet forrásokat hozzáadni vagy törölni. A 'napok' értékek: hány napnál régebbi tartalom ne jelenjen meg.",
+  "napok_hirek": 14,
+  "napok_videok": 21,
+  "max_video_csatornankent": 6,
+
+  "hirek": [
+    { "nev": "TeniszVilág", "nyelv": "hu", "url": "https://www.teniszvilag.com/feed/" },
+    { "nev": "Eurosport", "nyelv": "hu", "google_news": "site:eurosport.hu/tenisz", "google_nyelv": "hu" },
+    { "nev": "ATP Tour", "nyelv": "en", "google_news": "site:atptour.com", "google_nyelv": "en" },
+    { "nev": "WTA", "nyelv": "en", "google_news": "site:wtatennis.com", "google_nyelv": "en" }
+  ],
+
+  "youtube": [
+    { "nev": "Andy Roddick's Served", "csatorna": "UC0k_--YLuTNuDvq1Dw4zHmw" },
+    { "nev": "The Player's Box", "csatorna": "UCumZfRUQl8r9bwyPG_z1UsA" },
+    { "nev": "Christian's Court", "csatorna": "UCfS7iU4EqgEjuyImn8hLLew" },
+    { "nev": "WTA", "csatorna": "UCaBIVVpHjq6j3tSyxwTE-8Q" },
+    { "nev": "Tennis TV", "csatorna": "UCbcxFkd6B9xUU54InHv4Tig" },
+    { "nev": "Tennis Channel", "csatorna": "UCDitdIjOjS9Myza9I21IqzQ" },
+    { "nev": "Tennis Talk (Cam Williams)", "csatorna": "UCObs7FwjNmLB3u5fcHiLCWA" },
+    { "nev": "Gill Gross", "csatorna": "UCvERpLl9dXH09fuNdbyiLQQ" },
+    { "nev": "Billie Jean King Cup", "csatorna": "UCDnJCm5-6VfmJ-HjJ8u0lVg" },
+    { "nev": "ATP Tour", "csatorna": "UCY_5h5zaSwN7Or4kIJDYNXA" },
+    { "nev": "US Open", "csatorna": "UCXbboag48Qlr78zzz6SkzkQ" },
+    { "nev": "Eurosport Magyarország", "csatorna": "UC4vEwBq2qgRvu71kSs9MpAg", "csak_tenisz": true },
+    { "nev": "Jannik Sinner", "csatorna": "UC921lTfUVbGqHcfL4rtRhqQ" },
+    { "nev": "Laver Cup", "csatorna": "UC759rBUss3b39R0j6u_ECPA" },
+    { "nev": "Tennis Insider Club", "csatorna": "UCupseMLihrTzAKdlZnUtwJg" },
+    { "nev": "Australian Open", "csatorna": "UCeTKJSW1NTAkf27nNmjWt5A" },
+    { "nev": "Wide World of Sports", "csatorna": "UCV5HXUHFR-yuSb7qDJ5_80g", "csak_tenisz": true },
+    { "nev": "TNT Sports", "csatorna": "UClhp9g6TPiqCTOlcw0ROfNg", "csak_tenisz": true },
+    { "nev": "Nothing Major", "csatorna": "UCce3D2-VJRAZI8Mbwq9uHqQ" },
+    { "nev": "United Cup", "csatorna": "UCqV0MI8YsCQpVfuXo2kz5Jw" }
+  ],
+
+  "_facebook_leiras": "Ha egy oldalhoz később lesz hírcsatorna (pl. RSS.app), az 'rss' mezőbe kell beírni a linkjét, és a posztok bekerülnek a hírek közé.",
+  "facebook": [
+    { "nev": "Salakblog", "url": "https://www.facebook.com/Salakblog", "rss": "" },
+    { "nev": "huntennis", "url": "https://www.facebook.com/huntennis", "rss": "" },
+    { "nev": "Teniszfigyelő", "url": "https://www.facebook.com/teniszfigyelo", "rss": "" },
+    { "nev": "tenyeresegyenes", "url": "https://www.facebook.com/tenyeresegyenes", "rss": "" },
+    { "nev": "TeniszVilág", "url": "https://www.facebook.com/teniszvilag", "rss": "" }
+  ],
+
+  "tenisz_kulcsszavak": [
+    "tennis", "tenisz", "atp", "wta", "wimbledon", "roland", "french open", "us open", "australian open",
+    "grand slam", "davis cup", "billie jean", "united cup", "laver cup",
+    "sinner", "alcaraz", "djokovic", "nadal", "federer", "murray", "medvedev", "zverev", "de minaur",
+    "kyrgios", "draper", "fritz", "shelton", "rune", "musetti", "fucsovics", "marozsán", "marozsan",
+    "sabalenka", "swiatek", "świątek", "gauff", "rybakina", "pegula", "keys", "andreeva", "paolini",
+    "raducanu", "osaka", "barty", "kostyuk", "mboko", "udvardy", "bondár", "bondar", "gálfi", "stollár"
+  ]
+}
