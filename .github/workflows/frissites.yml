@@ -2,7 +2,7 @@ name: Frissítés
 
 on:
   schedule:
-    - cron: "17 */2 * * *"   # 2 óránként (UTC szerint, a 17. percben)
+    - cron: "7 * * * *"      # óránként (a GitHub ezt gyakran 30-80 perc késéssel indítja)
   workflow_dispatch:          # kézi indítás az Actions fülön
   push:
     branches: [main]
