@@ -172,7 +172,21 @@ def is_article(src, title, desc="", skip_titles=()):
         return False
     if desc and any(s.lower() in desc.lower() for s in src.get("kizart_leiras", [])):
         return False
+    if src.get("nyelv") == "en" and looks_foreign(title):
+        return False
     return True
+
+
+# Spanyol, olasz, francia, portugál kötőszavak, amelyek angol címben (és játékosnevekben) nem fordulnak elő.
+# ("de", "la", "en", "le" szándékosan nincs benne: de Minaur, La Laguna stb.)
+FOREIGN_WORDS = {"el", "los", "las", "del", "que", "con", "para", "una", "por", "sus", "como", "más", "pero", "muy",
+                 "les", "des", "est", "dans", "pour", "une", "avec", "sur", "il", "della", "che", "per", "gli", "nel",
+                 "não", "uma", "com", "ao", "és", "y"}
+
+
+def looks_foreign(title):
+    words = re.findall(r"[^\W\d_]+", title.lower())
+    return sum(w in FOREIGN_WORDS for w in words) >= 2
 
 
 def get_news(src, max_age, skip_titles=(), prev=None):
