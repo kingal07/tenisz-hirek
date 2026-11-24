@@ -98,6 +98,11 @@
   .rk .n { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .rk .n img { width: 20px; height: 14px; object-fit: cover; border-radius: 2px; flex: none; }
   .rk .p { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .tbtns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tbtn { font: inherit; font-size: 12.5px; font-weight: 600; border: 1px solid var(--accent); color: var(--accent);
+    background: transparent; border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+  button.tbtn { background: var(--accent); color: #fff; }
+  .evlink { font-size: 12.5px; color: var(--accent); font-weight: 600; margin-left: auto; }
   .upd { display: flex; align-items: center; gap: 6px; }
   #reload { border: 1px solid var(--line); background: var(--card); color: var(--accent); border-radius: 999px;
     width: 32px; height: 32px; font-size: 17px; line-height: 1; cursor: pointer; padding: 0; }
@@ -212,6 +217,7 @@ function start() {
   let lang = store.get('lang', 'mind');
   let kat = store.get('kat', 'mind');
   let vidSrc = 'mind';
+  let hirSrc = store.get('hsrc', 'mind');
   let shown = 60;
 
   const KATS = [['mind', 'Mind'], ['noi', 'Női'], ['ferfi', 'Férfi'], ['noi_paros', 'Női páros'],
@@ -224,10 +230,17 @@ function start() {
   const countLine = (n, total) => (q || n !== total) ? `<div class="count">${n} találat</div>` : '';
 
   function renderNews() {
-    const pool = D.hirek.filter(x => (lang === 'mind' || x.nyelv === lang) && hit(x.cim, x.kivonat, x.forras));
+    const srcs = [...new Set(D.hirek.filter(x => lang === 'mind' || x.nyelv === lang).map(x => x.forras))]
+      .sort((a, b) => a.localeCompare(b));
+    if (hirSrc !== 'mind' && !srcs.includes(hirSrc)) hirSrc = 'mind';
+    const pool = D.hirek.filter(x => (lang === 'mind' || x.nyelv === lang) && (hirSrc === 'mind' || x.forras === hirSrc)
+      && hit(x.cim, x.kivonat, x.forras));
     const items = pool.filter(katOk);
     const chips = [['mind', 'Mind'], ['hu', 'Magyar'], ['en', 'Angol']]
-      .map(([k, l]) => `<button class="chip ${lang === k ? 'on' : ''}" data-lang="${k}">${l}</button>`).join('');
+      .map(([k, l]) => `<button class="chip ${lang === k ? 'on' : ''}" data-lang="${k}">${l}</button>`).join('') +
+      `<select class="chip" id="hsrc" aria-label="Forrás"><option value="mind">Minden forrás</option>
+        ${srcs.map(s => `<option value="${esc(s)}" ${hirSrc === s ? 'selected' : ''}>${esc(s)} (${D.hirek.filter(x => x.forras === s).length})</option>`).join('')}
+      </select>`;
     const list = items.slice(0, shown).map(x => `
       <a class="news" href="${esc(x.link)}" target="_blank" rel="noopener">
         ${x.kep ? `<img src="${esc(x.kep)}" alt="" loading="lazy" onerror="this.remove()">` : ''}
@@ -262,13 +275,32 @@ function start() {
       ${items.length > shown ? '<button class="chip more" data-more>Továbbiak</button>' : ''}`;
   }
 
+  const ERED = 'https://www.eredmenyek.com/tenisz/';
+  function tourButtons(t) {
+    const today = new Date().toISOString().slice(0, 10);
+    const started = t.kezdes <= today;
+    const slugs = [['atp-egyeni', t.ea, 'férfi'], ['wta-egyeni', t.ew, 'női']].filter(([, s]) => s);
+    const both = slugs.length > 1;
+    let b = '';
+    if (started) {
+      if ((D.meccsek || []).some(m => m.vid === t.nev)) {
+        b += `<button class="tbtn" data-goto-ev="${esc(t.nev)}">Eredmények</button>`;
+      } else {
+        b += slugs.map(([c, s, g]) => `<a class="tbtn" href="${ERED}${c}/${s}/eredmenyek/" target="_blank" rel="noopener">Eredmények${both ? ' (' + g + ')' : ''} ↗</a>`).join('');
+      }
+    }
+    const drawSuf = /Finals/.test(t.kategoria) ? '' : 'sorsolas/';  // csoportkörös döntőknek nincs sorsolásoldala
+    b += slugs.map(([c, s, g]) => `<a class="tbtn" href="${ERED}${c}/${s}/${drawSuf}" target="_blank" rel="noopener">Főtábla${both ? ' (' + g + ')' : ''} ↗</a>`).join('');
+    return b ? `<div class="tbtns">${b}</div>` : '';
+  }
   function tourRow(t) {
     const gs = t.kategoria === 'Grand Slam';
     return `<div class="tour">
       <div class="d">${fmtDay(t.kezdes)} –<br>${fmtDay(t.vege)}</div>
       <div><span class="tag ${gs ? 'gs' : ''}">${esc(t.kategoria)}</span><span class="tag">${esc(t.tura)}</span><br>
         <b>${esc(t.nev)}</b> <span class="note">· ${esc(t.varos)}</span>
-        ${t.megjegyzes ? `<div class="note">${esc(t.megjegyzes)}</div>` : ''}</div>
+        ${t.megjegyzes ? `<div class="note">${esc(t.megjegyzes)}</div>` : ''}
+        ${tourButtons(t)}</div>
     </div>`;
   }
 
@@ -276,6 +308,7 @@ function start() {
     const today = new Date().toISOString().slice(0, 10);
     const all = D.versenyek.filter(t => hit(t.nev, t.varos, t.kategoria, t.tura));
     const now = all.filter(t => t.kezdes <= today && t.vege >= today);
+    const recent = all.filter(t => t.vege < today).sort((a, b) => b.vege.localeCompare(a.vege));
     const upcoming = all.filter(t => t.kezdes > today);
     const next = upcoming.slice(0, q ? upcoming.length : shown);
     const ics = new URL('versenyek.ics', location.href).href;
@@ -291,6 +324,7 @@ function start() {
       </div>
       <div class="section-title">Most zajlik</div>
       <div class="list">${now.map(tourRow).join('') || '<div class="note">Most nincs verseny.</div>'}</div>
+      ${recent.length ? `<div class="section-title">Nemrég befejeződött</div><div class="list">${recent.map(tourRow).join('')}</div>` : ''}
       <div class="section-title">Következő versenyek</div>
       <div class="list">${next.map(tourRow).join('') || '<div class="note">Nincs találat.</div>'}</div>
       ${upcoming.length > next.length ? `<button class="chip more" data-more>Továbbiak (még ${upcoming.length - next.length})</button>` : ''}`;
@@ -341,8 +375,9 @@ function start() {
     return `<div class="match"><div class="mh">${head}</div>${p(m.j1, true)}${p(m.j2, false)}</div>`;
   }
 
+  let evFilter = '';
   function renderMatches() {
-    const pool = D_M.filter(m => hit(m.verseny, m.j1.nev, m.j2.nev, m.kor));
+    const pool = D_M.filter(m => (!evFilter || m.vid === evFilter) && hit(m.verseny, m.j1.nev, m.j2.nev, m.kor));
     const byKat = pool.filter(m => szint === 'mind' || m.szint === szint);
     const items = byKat.filter(m => kat === 'mind' || m.kat === kat);
     const katRow = KATS.filter(([k]) => k === 'mind' || k === kat || byKat.some(m => m.kat === k))
@@ -357,13 +392,18 @@ function start() {
     for (const [k, ms] of groups) {
       if (n >= shown) break;
       const m0 = ms[0];
-      html += `<div class="ev"><b>${esc(m0.verseny)}</b><span class="tag">${esc(m0.tura)}</span><span class="tag ${m0.szint === 'Grand Slam' ? 'gs' : ''}">${esc(m0.szint)}</span></div>`;
+      const cat = m0.tura === 'ATP' ? 'atp-egyeni' : 'wta-egyeni';
+      const statUrl = m0.ered ? `${EXT}${cat}/${m0.ered}/eredmenyek/` : (m0.szint === '125' ? EXT + 'challenger-noi-egyeni/' : EXT);
+      html += `<div class="ev"><b>${esc(m0.verseny)}</b><span class="tag">${esc(m0.tura)}</span><span class="tag ${m0.szint === 'Grand Slam' ? 'gs' : ''}">${esc(m0.szint)}</span>
+        <a class="evlink" href="${statUrl}" target="_blank" rel="noopener">Statisztikák ↗</a>
+        ${m0.ered ? `<a class="evlink" style="margin-left:0" href="${EXT}${cat}/${m0.ered}/${m0.szint === 'Finals' ? '' : 'sorsolas/'}" target="_blank" rel="noopener">Főtábla ↗</a>` : ''}</div>`;
       html += ms.slice(0, Math.max(shown - n, 0)).map(matchRow).join('');
       n += ms.length;
     }
     const ext = EXT_LINKS.filter(([k]) => kat === 'mind' || k === kat)
       .map(([, l, u]) => `<a href="${EXT + u}" target="_blank" rel="noopener">${l}</a>`).join('');
-    app.innerHTML = `<div class="chips">${katRow}</div><div class="chips">${szRow}</div>
+    const evChip = evFilter ? `<div class="chips"><button class="chip on" data-clear-ev>Verseny: ${esc(evFilter)} ✕</button></div>` : '';
+    app.innerHTML = `${evChip}<div class="chips">${katRow}</div><div class="chips">${szRow}</div>
       ${html || `<div class="empty">${D_M.length ? 'Nincs találat.' : 'Az elmúlt héten nem volt ATP- vagy WTA-meccs (szezonszünet).'}</div>`}
       ${items.length > shown ? '<button class="chip more" data-more>Továbbiak</button>' : ''}
       <div class="section-title">Challenger, ITF, WTA 125 és csapatversenyek (eredmenyek.com)</div>
@@ -403,7 +443,7 @@ function start() {
 
   document.querySelector('nav').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
-    tab = b.dataset.tab; shown = 60; store.set('tab', tab); render(); window.scrollTo(0, 0);
+    tab = b.dataset.tab; shown = 60; evFilter = ''; store.set('tab', tab); render(); window.scrollTo(0, 0);
   });
   app.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
@@ -411,11 +451,17 @@ function start() {
     else if (b.dataset.kat) { kat = b.dataset.kat; store.set('kat', kat); shown = 60; }
     else if (b.dataset.szint) { szint = b.dataset.szint; store.set('szint', szint); shown = 60; }
     else if (b.dataset.rtour) { rtour = b.dataset.rtour; store.set('rtour', rtour); }
+    else if (b.dataset.gotoEv) {
+      evFilter = b.dataset.gotoEv; tab = 'meccsek'; kat = 'mind'; szint = 'mind'; shown = 60;
+      qInput.value = ''; q = ''; store.set('tab', tab); window.scrollTo(0, 0);
+    }
+    else if (b.hasAttribute('data-clear-ev')) { evFilter = ''; }
     else if (b.hasAttribute('data-more')) { shown += 60; }
     render();
   });
   app.addEventListener('change', e => {
     if (e.target.id === 'vsrc') { vidSrc = e.target.value; shown = 60; render(); }
+    if (e.target.id === 'hsrc') { hirSrc = e.target.value; store.set('hsrc', hirSrc); shown = 60; render(); }
   });
   let qTimer;
   qInput.addEventListener('input', () => {

@@ -3,13 +3,29 @@
   "napok_hirek": 14,
   "napok_videok": 21,
   "max_video_csatornankent": 6,
+  "elozo_adat": "https://kingal07.github.io/tenisz-hirek/data.js",
   "kizart_cimek": ["Hírek és Információ", "Tenisz hírek & eredmények", "Hírek & eredmények", "Hírek és eredmények"],
 
   "hirek": [
     { "nev": "TeniszVilág", "nyelv": "hu", "url": "https://www.teniszvilag.com/feed/" },
-    { "nev": "Eurosport", "nyelv": "hu", "google_news": "site:eurosport.hu/tenisz", "google_nyelv": "hu" },
-    { "nev": "ATP Tour", "nyelv": "en", "google_news": "site:atptour.com", "google_nyelv": "en" },
-    { "nev": "WTA", "nyelv": "en", "google_news": "site:wtatennis.com", "google_nyelv": "en" }
+    { "nev": "Eurosport", "nyelv": "hu", "google_news": "site:eurosport.hu/tenisz", "google_nyelv": "hu",
+      "_szures": "Meccsoldalak (összefoglaló, statisztika, élő, videó), tabellák, szerzői és versenyoldalak kiszűrése.",
+      "kizart": ["Tenisz gólok & Összefoglalók", "Kapcsolódó videók: élő Tenisz", "Élő Tenisz Frissítések",
+                 "Tenisz gólok & Eredmények", "Táblázat: Tenisz", "Hírek és Információ", "Tenisz hírek & eredmények",
+                 "meccsek, eredmények, párosítások", "{{"],
+      "kizart_minta": ["^[^|„\"”:]+ - [^|]+ Összefoglaló$"],
+      "min_szavak": 4 },
+    { "nev": "ATP Tour", "nyelv": "en", "google_news": "site:atptour.com", "google_nyelv": "en",
+      "_szures": "Az ATP oldaláról a Google Hírek mérlegoldalakat, statisztikaoldalakat és játékosprofilokat is ad; ezek nem cikkek.",
+      "kizart": ["| Head 2 Head", "| Stats Centre", "| Challenger TV", "| ATP Tour | Tennis", "Player activity", "supported by"],
+      "min_szavak": 5,
+      "kizart_minta": ["^[^,]+, [^-]+ - [^,]+, ", " VS "] },
+    { "nev": "WTA", "nyelv": "en", "sitemap": "https://www.wtatennis.com/sitemap/articles.xml", "max": 80,
+      "_szures": "Nyereményjátékok, szavazások és tartalom nélküli programoldalak kiszűrése.",
+      "kizart": ["Giveaway", "Sweepstakes"],
+      "kizart_minta": ["(?i)^(win an? |vote:|quiz:|poll:)"],
+      "min_szavak": 5,
+      "kizart_leiras": ["The official website of the Women's Tennis Association"] }
   ],
 
   "youtube": [

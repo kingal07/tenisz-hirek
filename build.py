@@ -106,20 +106,57 @@ def parse_feed(raw):
 
 
 def google_news_url(query, lang):
-    q = urllib.parse.quote(f"{query} when:14d")
+    q = urllib.parse.quote(query)
     if lang == "hu":
         return f"https://news.google.com/rss/search?q={q}&hl=hu&gl=HU&ceid=HU:hu"
     return f"https://news.google.com/rss/search?q={q}&hl=en-US&gl=US&ceid=US:en"
 
 
+def news_feed_items(src, max_age):
+    if src.get("url"):
+        return parse_feed(fetch(src["url"]))
+    # A Google Hírek egy kérésre legfeljebb 100 találatot ad, ezért napokra bontva kérdezzük le.
+    lang = src.get("google_nyelv", "en")
+    days = max(1, max_age.days)
+    queries = []
+    for i in range(days + 1):
+        d = NOW.date() - timedelta(days=i)
+        queries.append(f"{src['google_news']} after:{d} before:{d + timedelta(days=1)}")
+    items = []
+    for q in queries:
+        try:
+            items += parse_feed(fetch(google_news_url(q, lang)))
+        except Exception as e:
+            print(f"Google Hírek ({src['nev']}, {q}): {e}", file=sys.stderr)
+    if not items:
+        raise RuntimeError("a Google Hírek egyik napra sem adott találatot")
+    return items
+
+
+def is_article(src, title, desc="", skip_titles=()):
+    """Forrásonkénti szűrők (forrasok.json): kizart (címrészlet), min_szavak, kizart_minta (regex), kizart_leiras."""
+    low = title.lower()
+    if any(s.lower() in low for s in list(skip_titles) + src.get("kizart", [])):
+        return False
+    if len(title.split()) < src.get("min_szavak", 0):
+        return False
+    if any(re.search(p, title) for p in src.get("kizart_minta", [])):
+        return False
+    if desc and any(s.lower() in desc.lower() for s in src.get("kizart_leiras", [])):
+        return False
+    return True
+
+
 def get_news(src, max_age, skip_titles=()):
-    url = src.get("url") or google_news_url(src["google_news"], src.get("google_nyelv", "en"))
     out = []
-    for it in parse_feed(fetch(url)):
+    for it in news_feed_items(src, max_age):
         if not it["datum"] or it["datum"] < NOW - max_age or not it["link"]:
             continue
-        if any(s.lower() in it["cim"].lower() for s in skip_titles):
+        if any(s.lower() in it["cim"].lower() for s in list(skip_titles) + src.get("kizart", [])):
             continue  # pl. szerzői vagy gyűjtőoldalak, nem cikkek
+        cim_tiszta = re.sub(r"\s+-\s+[^-]+$", "", it["cim"]) if "google_news" in src else it["cim"]
+        if not is_article(src, cim_tiszta, it.get("kivonat", "")):
+            continue  # pl. csak egy játékosnév (profiloldal)
         cim = it["cim"]
         if "google_news" in src:
             # A Google Hírek a cím végére teszi a forrást (" - ATP Tour"), és a kivonata csak egy link.
@@ -132,6 +169,59 @@ def get_news(src, max_age, skip_titles=()):
             "kivonat": it["kivonat"], "kep": it["kep"],
         })
     return out
+
+
+def page_meta(html_text):
+    def meta(name):
+        m = re.search(r'<meta[^>]+(?:property|name)="' + re.escape(name) + r'"[^>]+content="([^"]*)"', html_text)
+        return html.unescape(m.group(1)) if m else ""
+    return {"cim": meta("og:title"), "kivonat": clean_text(meta("og:description")), "kep": meta("og:image"),
+            "datum": parse_date(meta("article:published_time"))}
+
+
+def get_sitemap_news(src, max_age, prev):
+    """Cikkek egy oldaltérképből (sitemap); a már ismert cikkeket az előző futásból veszi át,
+    csak az újakat tölti le."""
+    root = ET.fromstring(fetch(src["sitemap"]))
+    sm = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
+    urls = []
+    for u in root.iter(sm + "url"):
+        loc, mod = u.findtext(sm + "loc"), parse_date(u.findtext(sm + "lastmod"))
+        if loc and mod and mod >= NOW - max_age and "/news/" in loc:
+            urls.append((mod, loc.strip()))
+    urls.sort(reverse=True)
+    urls = urls[: src.get("max", 80)]
+
+    def one(item):
+        _, loc = item
+        if loc in prev:
+            return prev[loc]
+        try:
+            m = page_meta(fetch(loc).decode("utf-8", "replace"))
+        except Exception:
+            return None
+        if not m["cim"] or not is_article(src, m["cim"], m["kivonat"]):
+            return None
+        return {"tipus": "hir", "forras": src["nev"], "nyelv": src.get("nyelv", "en"), "cim": m["cim"], "link": loc,
+                "datum": (m["datum"] or item[0]).isoformat(), "kivonat": m["kivonat"], "kep": m["kep"]}
+
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        found = [x for x in ex.map(one, urls) if x]
+    # az előző futásból átvett cikkekre is érvényesek a (közben esetleg bővített) szűrők
+    return [x for x in found if parse_date(x["datum"]) >= NOW - max_age and is_article(src, x["cim"], x.get("kivonat", ""))]
+
+
+def load_previous(url):
+    """Az előző futás hírei link szerint (hogy a már ismert cikkeket ne kelljen újra letölteni)."""
+    if not url:
+        return {}
+    try:
+        txt = fetch(url).decode("utf-8")
+        data = json.loads(txt[txt.index("{"): txt.rstrip().rstrip(";").rindex("}") + 1])
+        return {h["link"]: h for h in data.get("hirek", [])}
+    except Exception as e:
+        print(f"Előző adat nem olvasható ({e}), minden cikket újra letölt.", file=sys.stderr)
+        return {}
 
 
 def get_videos(src, max_age, max_n, keywords):
@@ -188,17 +278,24 @@ def norm_name(s):
     return re.sub(r"[^a-z0-9]+", " ", html.unescape(s).lower()).strip()
 
 
-def level_of(event_name, tour, tournaments):
-    """Szint: Grand Slam / 1000 / 500 / 250 / 125 / Finals / Csapat."""
+def find_tournament(event_name, tour, tournaments):
     n = norm_name(event_name)
     for t in tournaments:
         tn = norm_name(re.sub(r"\(.*?\)", "", t["nev"]))
         if tn and (tn in n or n in tn) and (tour.upper() in t["tura"]):
-            kat = t["kategoria"]
-            if "/" in kat:  # pl. "ATP 250 / WTA 500" -> a túrának megfelelő rész
-                parts = [p.strip() for p in kat.split("/")]
-                kat = next((p for p in parts if p.upper().startswith(tour.upper())), parts[-1 if tour == "wta" else 0])
-            break
+            return t
+    return None
+
+
+def level_of(event_name, tour, tournaments):
+    """Szint: Grand Slam / 1000 / 500 / 250 / 125 / Finals / Csapat."""
+    n = norm_name(event_name)
+    t = find_tournament(event_name, tour, tournaments)
+    if t:
+        kat = t["kategoria"]
+        if "/" in kat:  # pl. "ATP 250 / WTA 500" -> a túrának megfelelő rész
+            parts = [p.strip() for p in kat.split("/")]
+            kat = next((p for p in parts if p.upper().startswith(tour.upper())), parts[-1 if tour == "wta" else 0])
     else:
         kat = next((lvl for key, lvl in LEVEL_ALIASES if key in n), None)
         if kat is None:
@@ -248,6 +345,8 @@ def get_matches(tournaments, days=7):
         data = json.loads(fetch(f"{ESPN}/{tour}/scoreboard?dates={start:%Y%m%d}-{end:%Y%m%d}"))
         for ev in data.get("events", []):
             szint = level_of(ev.get("name", ""), tour, tournaments)
+            row = find_tournament(ev.get("name", ""), tour, tournaments) or {}
+            ered = row.get(f"eredmenyek_{tour}", "")
             for g in ev.get("groupings", []):
                 kat = GROUP_KAT.get(g.get("grouping", {}).get("slug", ""))
                 if not kat:
@@ -260,6 +359,7 @@ def get_matches(tournaments, days=7):
                     detail = c.get("status", {}).get("type", {}).get("shortDetail", "")
                     out.append({
                         "tura": tour.upper(), "verseny": ev.get("name", ""), "szint": szint, "kat": kat,
+                        "ered": ered, "vid": row.get("nev", ""),
                         "kor": c.get("round", {}).get("displayName", ""), "datum": c.get("date", ""),
                         "allapot": "elo" if state == "in" else "vege",
                         "megjegyzes": "" if detail in ("Final", "FT") else detail,
@@ -366,8 +466,12 @@ def main():
         {"nev": fb["nev"] + " (Facebook)", "nyelv": "hu", "url": fb["rss"]} for fb in cfg["facebook"] if fb.get("rss")
     ]
 
+    prev = load_previous(cfg.get("elozo_adat"))
+
     def run(kind, src):
         try:
+            if kind == "hir" and src.get("sitemap"):
+                return get_sitemap_news(src, news_age, prev)
             if kind == "hir":
                 return get_news(src, news_age, cfg.get("kizart_cimek", []))
             return get_videos(src, vid_age, cfg["max_video_csatornankent"], kw)
@@ -389,8 +493,9 @@ def main():
     today = NOW.date()
     versenyek = [
         {"tura": t["tura"], "kategoria": t["kategoria"], "nev": t["nev"], "varos": t["varos"],
-         "kezdes": t["kezdes"].isoformat(), "vege": t["vege"].isoformat(), "megjegyzes": t.get("megjegyzes", "")}
-        for t in tournaments if t["vege"] >= today
+         "kezdes": t["kezdes"].isoformat(), "vege": t["vege"].isoformat(), "megjegyzes": t.get("megjegyzes", ""),
+         "ea": t.get("eredmenyek_atp", ""), "ew": t.get("eredmenyek_wta", "")}
+        for t in tournaments if t["vege"] >= today - timedelta(days=14)
     ]
 
     try:
