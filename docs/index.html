@@ -71,6 +71,33 @@
   .fb:hover { border-color: var(--accent); }
   .empty { color: var(--muted); padding: 30px 0; text-align: center; }
   .more { display: block; margin: 16px auto 0; }
+  .ev { margin: 18px 0 8px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .ev:first-of-type { margin-top: 4px; }
+  .ev b { font-size: 15px; }
+  .match { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; }
+  .match + .match { margin-top: 6px; }
+  .match .mh { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .pl { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 2px 0; }
+  .pl .n { font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
+  .pl .n small { color: var(--muted); }
+  .pl.w .n { font-weight: 700; }
+  .sets { display: flex; gap: 4px; font-variant-numeric: tabular-nums; }
+  .sets span { min-width: 18px; text-align: center; font-size: 14px; color: var(--muted); }
+  .pl.w .sets span.won, .sets span.won { color: var(--text); font-weight: 700; }
+  .sets sup { font-size: 9px; margin-left: 1px; }
+  .live { background: #d33; color: #fff; font-size: 10.5px; font-weight: 800; letter-spacing: .05em; padding: 2px 6px; border-radius: 4px; }
+  .live-link { color: var(--accent); font-weight: 600; font-size: 12.5px; }
+  .ext { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ext a { border: 1px solid var(--accent); color: var(--accent); border-radius: 999px; padding: 4px 11px; font-size: 13px; }
+  .rk { display: grid; grid-template-columns: 34px 44px 1fr auto; gap: 8px; align-items: center; background: var(--card);
+    border: 1px solid var(--line); border-radius: 10px; padding: 7px 12px; }
+  .rk + .rk { margin-top: 4px; }
+  .rk .h { font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
+  .rk .ch { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .ch.up { color: #1f9d55; } .ch.down { color: #d33; } .ch.same { color: var(--muted); }
+  .rk .n { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .rk .n img { width: 20px; height: 14px; object-fit: cover; border-radius: 2px; flex: none; }
+  .rk .p { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .upd { display: flex; align-items: center; gap: 6px; }
   #reload { border: 1px solid var(--line); background: var(--card); color: var(--accent); border-radius: 999px;
     width: 32px; height: 32px; font-size: 17px; line-height: 1; cursor: pointer; padding: 0; }
@@ -91,6 +118,8 @@
   <nav>
     <button data-tab="hirek" class="on">Hírek</button>
     <button data-tab="videok">Videók</button>
+    <button data-tab="meccsek">Meccsek</button>
+    <button data-tab="ranglista">Ranglista</button>
     <button data-tab="versenyek">Versenyek</button>
     <button data-tab="facebook">Facebook</button>
   </nav>
@@ -267,6 +296,97 @@ function start() {
       ${upcoming.length > next.length ? `<button class="chip more" data-more>Továbbiak (még ${upcoming.length - next.length})</button>` : ''}`;
   }
 
+  // ---- Meccsek ----
+  const EXT = 'https://www.eredmenyek.com/tenisz/';
+  const EXT_LINKS = [
+    ['ferfi', 'Challenger férfi', 'challenger-ferfi-egyeni/'], ['ferfi_paros', 'Challenger férfi páros', 'challenger-ferfi-paros/'],
+    ['noi', 'WTA 125 (Challenger női)', 'challenger-noi-egyeni/'], ['noi_paros', 'WTA 125 páros', 'challenger-noi-paros/'],
+    ['ferfi', 'ITF férfi', 'itf-ferfi-egyeni/'], ['ferfi_paros', 'ITF férfi páros', 'itf-ferfi-paros/'],
+    ['noi', 'ITF női', 'itf-noi-egyeni/'], ['noi_paros', 'ITF női páros', 'itf-noi-paros/'],
+    ['ferfi', 'Davis Kupa', 'csapatok-ferfi/'], ['noi', 'BJK Kupa', 'csapat-noi/'], ['vegyes', 'Vegyes páros', 'vegyesparos/']
+  ];
+  const SZINTEK = [['mind', 'Minden szint'], ['Grand Slam', 'Grand Slam'], ['Finals', 'Finals'], ['1000', '1000'],
+    ['500', '500'], ['250', '250'], ['125', 'WTA 125'], ['Csapat', 'Csapat']];
+  let szint = store.get('szint', 'mind');
+  const D_M = D.meccsek || [];
+  const mKatName = { noi: 'Női egyes', ferfi: 'Férfi egyes', noi_paros: 'Női páros', ferfi_paros: 'Férfi páros', vegyes: 'Vegyes páros' };
+  const timeHu = iso => new Date(iso).toLocaleString('hu-HU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  function roundHu(r) {
+    const s = String(r || '');
+    const map = [[/^final$/i, 'Döntő'], [/semi/i, 'Elődöntő'], [/quarter/i, 'Negyeddöntő'], [/round of 16/i, 'Nyolcaddöntő'],
+      [/group/i, 'Csoportkör'], [/qualif/i, 'Selejtező'], [/(\d+)\w*\s*round|round\s*(\d+)/i, null]];
+    for (const [re, hu] of map) {
+      const m = s.match(re);
+      if (m) return hu || `${m[1] || m[2]}. forduló`;
+    }
+    return s;
+  }
+  const uniqC = s => [...new Set(String(s || '').split(/,\s*/).filter(Boolean))].join(', ');
+
+  function matchRow(m) {
+    m = Object.assign({}, m, { kor: roundHu(m.kor), j1: Object.assign({}, m.j1, { orszag: uniqC(m.j1.orszag) }),
+      j2: Object.assign({}, m.j2, { orszag: uniqC(m.j2.orszag) }) });
+    const p = (j, mine) => {
+      const sets = m.szettek.map(s => {
+        const a = mine ? s.a : s.b, b = mine ? s.b : s.a;
+        const tb = (!s.r && s.tb != null && a < b) ? `<sup>${s.tb}</sup>` : '';
+        return `<span class="${a > b ? 'won' : ''}">${s.r ? `[${a}]` : a}${tb}</span>`;
+      }).join('');
+      return `<div class="pl ${j.gyoztes ? 'w' : ''}"><div class="n">${esc(j.nev)}${j.orszag ? ` <small>${esc(j.orszag)}</small>` : ''}</div><div class="sets">${sets}</div></div>`;
+    };
+    const head = m.allapot === 'elo'
+      ? `<span><span class="live">ÉLŐ</span> ${esc(m.kor)}</span><a class="live-link" href="${EXT}" target="_blank" rel="noopener">Élő eredmény →</a>`
+      : `<span>${esc(m.kor)} · ${esc(mKatName[m.kat] || '')}</span><span>${timeHu(m.datum)}${m.megjegyzes ? ' · ' + esc(m.megjegyzes) : ''}</span>`;
+    return `<div class="match"><div class="mh">${head}</div>${p(m.j1, true)}${p(m.j2, false)}</div>`;
+  }
+
+  function renderMatches() {
+    const pool = D_M.filter(m => hit(m.verseny, m.j1.nev, m.j2.nev, m.kor));
+    const byKat = pool.filter(m => szint === 'mind' || m.szint === szint);
+    const items = byKat.filter(m => kat === 'mind' || m.kat === kat);
+    const katRow = KATS.filter(([k]) => k === 'mind' || k === kat || byKat.some(m => m.kat === k))
+      .map(([k, l]) => `<button class="chip cat ${kat === k ? 'on' : ''}" data-kat="${k}">${l}</button>`).join('');
+    const szRow = SZINTEK.filter(([k]) => k === 'mind' || k === szint || pool.some(m => m.szint === k))
+      .map(([k, l]) => `<button class="chip ${szint === k ? 'on' : ''}" data-szint="${esc(k)}">${l}</button>`).join('');
+    // versenyenként csoportosítva; az élő meccsek előre kerülnek
+    const groups = new Map();
+    items.slice().sort((a, b) => (b.allapot === 'elo') - (a.allapot === 'elo') || b.datum.localeCompare(a.datum))
+      .forEach(m => { const k = m.tura + '|' + m.verseny; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(m); });
+    let n = 0, html = '';
+    for (const [k, ms] of groups) {
+      if (n >= shown) break;
+      const m0 = ms[0];
+      html += `<div class="ev"><b>${esc(m0.verseny)}</b><span class="tag">${esc(m0.tura)}</span><span class="tag ${m0.szint === 'Grand Slam' ? 'gs' : ''}">${esc(m0.szint)}</span></div>`;
+      html += ms.slice(0, Math.max(shown - n, 0)).map(matchRow).join('');
+      n += ms.length;
+    }
+    const ext = EXT_LINKS.filter(([k]) => kat === 'mind' || k === kat)
+      .map(([, l, u]) => `<a href="${EXT + u}" target="_blank" rel="noopener">${l}</a>`).join('');
+    app.innerHTML = `<div class="chips">${katRow}</div><div class="chips">${szRow}</div>
+      ${html || `<div class="empty">${D_M.length ? 'Nincs találat.' : 'Az elmúlt héten nem volt ATP- vagy WTA-meccs (szezonszünet).'}</div>`}
+      ${items.length > shown ? '<button class="chip more" data-more>Továbbiak</button>' : ''}
+      <div class="section-title">Challenger, ITF, WTA 125 és csapatversenyek (eredmenyek.com)</div>
+      <div class="ext">${ext}</div>`;
+  }
+
+  // ---- Ranglista ----
+  let rtour = store.get('rtour', 'atp');
+  function renderRankings() {
+    const R = (D.ranglista || {})[rtour] || { lista: [] };
+    const list = R.lista.filter(r => hit(r.nev, r.orszag));
+    const chips = [['atp', 'ATP (férfi)'], ['wta', 'WTA (női)']]
+      .map(([k, l]) => `<button class="chip ${rtour === k ? 'on' : ''}" data-rtour="${k}">${l}</button>`).join('');
+    const rows = list.map(r => {
+      const d = (r.elozo || r.hely) - r.hely;
+      const ch = !r.elozo ? '<span class="ch up">új</span>' : d > 0 ? `<span class="ch up">▲${d}</span>` : d < 0 ? `<span class="ch down">▼${-d}</span>` : '<span class="ch same">–</span>';
+      return `<div class="rk"><span class="h">${r.hely}.</span>${ch}<span class="n">${r.zaszlo ? `<img src="${esc(r.zaszlo)}" alt="" loading="lazy">` : ''}<span>${esc(r.nev)}</span></span><span class="p">${r.pont.toLocaleString('hu-HU')} p</span></div>`;
+    }).join('');
+    app.innerHTML = `<div class="chips">${chips}</div>
+      ${R.datum ? `<div class="count">Világranglista, ${new Date(R.datum).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })} · a nyilak az előző heti helyezéshez képest</div>` : ''}
+      ${rows || '<div class="empty">Nincs adat.</div>'}`;
+  }
+
   function renderFacebook() {
     app.innerHTML = `
       <p class="note" style="margin-top:0">A Facebook nem engedi automatikusan begyűjteni a posztokat, ezért ezek az oldalak egy kattintással nyílnak meg.</p>
@@ -277,7 +397,8 @@ function start() {
 
   function render() {
     document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-    ({ hirek: renderNews, videok: renderVideos, versenyek: renderTournaments, facebook: renderFacebook }[tab] || renderNews)();
+    ({ hirek: renderNews, videok: renderVideos, meccsek: renderMatches, ranglista: renderRankings,
+       versenyek: renderTournaments, facebook: renderFacebook }[tab] || renderNews)();
   }
 
   document.querySelector('nav').addEventListener('click', e => {
@@ -288,6 +409,8 @@ function start() {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.lang) { lang = b.dataset.lang; store.set('lang', lang); shown = 60; }
     else if (b.dataset.kat) { kat = b.dataset.kat; store.set('kat', kat); shown = 60; }
+    else if (b.dataset.szint) { szint = b.dataset.szint; store.set('szint', szint); shown = 60; }
+    else if (b.dataset.rtour) { rtour = b.dataset.rtour; store.set('rtour', rtour); }
     else if (b.hasAttribute('data-more')) { shown += 60; }
     render();
   });

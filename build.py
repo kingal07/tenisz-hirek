@@ -167,6 +167,131 @@ def dedupe(items):
     return out
 
 
+# ---------------- Meccsek és ranglista (ESPN) ----------------
+
+ESPN = "https://site.api.espn.com/apis/site/v2/sports/tennis"
+GROUP_KAT = {"mens-singles": "ferfi", "womens-singles": "noi", "mens-doubles": "ferfi_paros",
+             "womens-doubles": "noi_paros", "mixed-doubles": "vegyes"}
+# Ha a verseny neve nem szerepel a versenyek.csv-ben, ezek a kulcsszavak döntenek a szintről
+LEVEL_ALIASES = [
+    ("australian open", "Grand Slam"), ("roland garros", "Grand Slam"), ("french open", "Grand Slam"),
+    ("wimbledon", "Grand Slam"), ("us open", "Grand Slam"),
+    ("finals", "Finals"), ("united cup", "Csapat"), ("davis cup", "Csapat"), ("billie jean", "Csapat"),
+    ("laver cup", "Csapat"), ("italian open", "1000"), ("internazionali", "1000"), ("indian wells", "1000"),
+    ("bnp paribas open", "1000"), ("miami", "1000"), ("madrid", "1000"), ("monte carlo", "1000"),
+    ("canadian open", "1000"), ("national bank open", "1000"), ("cincinnati", "1000"), ("shanghai", "1000"),
+    ("paris masters", "1000"), ("wuhan", "1000"),
+]
+
+
+def norm_name(s):
+    return re.sub(r"[^a-z0-9]+", " ", html.unescape(s).lower()).strip()
+
+
+def level_of(event_name, tour, tournaments):
+    """Szint: Grand Slam / 1000 / 500 / 250 / 125 / Finals / Csapat."""
+    n = norm_name(event_name)
+    for t in tournaments:
+        tn = norm_name(re.sub(r"\(.*?\)", "", t["nev"]))
+        if tn and (tn in n or n in tn) and (tour.upper() in t["tura"]):
+            kat = t["kategoria"]
+            if "/" in kat:  # pl. "ATP 250 / WTA 500" -> a túrának megfelelő rész
+                parts = [p.strip() for p in kat.split("/")]
+                kat = next((p for p in parts if p.upper().startswith(tour.upper())), parts[-1 if tour == "wta" else 0])
+            break
+    else:
+        kat = next((lvl for key, lvl in LEVEL_ALIASES if key in n), None)
+        if kat is None:
+            # Az ESPN WTA-listájában a nem túraszintű versenyek WTA 125-ösök
+            kat = "WTA 125" if tour == "wta" else "ATP 250"
+    for key, lvl in (("grand slam", "Grand Slam"), ("1000", "1000"), ("500", "500"), ("250", "250"), ("125", "125"),
+                     ("finals", "Finals"), ("next gen", "Finals"), ("cup", "Csapat")):
+        if key in kat.lower():
+            return lvl
+    return kat
+
+
+def side(comp):
+    if comp.get("roster"):
+        names = [a.get("displayName", "") for a in comp["roster"].get("athletes", [])]
+        nev = comp["roster"].get("displayName") or " / ".join(names)
+        orszag = ", ".join(a.get("flag", {}).get("alt", "") for a in comp["roster"].get("athletes", []))
+    else:
+        a = comp.get("athlete", {})
+        nev, orszag = a.get("displayName", ""), a.get("flag", {}).get("alt", "")
+    return {"nev": nev, "orszag": orszag, "gyoztes": bool(comp.get("winner")),
+            "kiemeles": comp.get("curatedRank", {}).get("current") if isinstance(comp.get("curatedRank"), dict) else None}
+
+
+def set_scores(c1, c2):
+    """Szettenként [saját, ellenfél, rövidítés vagy None] a két játékos linescores mezőjéből."""
+    out = []
+    for a, b in zip(c1.get("linescores", []), c2.get("linescores", [])):
+        x, y = int(a.get("value", 0)), int(b.get("value", 0))
+        tb_a, tb_b = a.get("tiebreak"), b.get("tiebreak")
+        if x + y == 1 and (tb_a is not None or tb_b is not None):
+            # Szuper-rövidítés (a 3. szett helyett): a vesztes pontjai ismertek, a győztesé legalább 10
+            lose = tb_a if tb_a is not None else tb_b
+            win = max(10, (lose or 0) + 2)
+            out.append({"r": True, "a": win if x else lose, "b": lose if x else win})
+        else:
+            tb = tb_a if tb_a is not None else tb_b
+            out.append({"a": x, "b": y, "tb": tb})
+    return out
+
+
+def get_matches(tournaments, days=7):
+    end = NOW.date() + timedelta(days=1)
+    start = NOW.date() - timedelta(days=days)
+    out = []
+    for tour in ("atp", "wta"):
+        data = json.loads(fetch(f"{ESPN}/{tour}/scoreboard?dates={start:%Y%m%d}-{end:%Y%m%d}"))
+        for ev in data.get("events", []):
+            szint = level_of(ev.get("name", ""), tour, tournaments)
+            for g in ev.get("groupings", []):
+                kat = GROUP_KAT.get(g.get("grouping", {}).get("slug", ""))
+                if not kat:
+                    continue
+                for c in g.get("competitions", []):
+                    state = c.get("status", {}).get("type", {}).get("state")
+                    if state not in ("post", "in") or len(c.get("competitors", [])) != 2:
+                        continue
+                    p1, p2 = c["competitors"]
+                    detail = c.get("status", {}).get("type", {}).get("shortDetail", "")
+                    out.append({
+                        "tura": tour.upper(), "verseny": ev.get("name", ""), "szint": szint, "kat": kat,
+                        "kor": c.get("round", {}).get("displayName", ""), "datum": c.get("date", ""),
+                        "allapot": "elo" if state == "in" else "vege",
+                        "megjegyzes": "" if detail in ("Final", "FT") else detail,
+                        "j1": side(p1), "j2": side(p2), "szettek": set_scores(p1, p2),
+                    })
+    # Vegyes párosnál az ATP és a WTA listája ugyanazt a meccset adja
+    seen, uniq = set(), []
+    for m in sorted(out, key=lambda m: m["datum"], reverse=True):
+        key = (m["verseny"], m["kat"], frozenset((m["j1"]["nev"], m["j2"]["nev"])))
+        if key not in seen:
+            seen.add(key)
+            uniq.append(m)
+    return uniq
+
+
+def get_rankings():
+    out = {}
+    for tour in ("atp", "wta"):
+        data = json.loads(fetch(f"{ESPN}/{tour}/rankings"))
+        rk = (data.get("rankings") or [{}])[0]
+        out[tour] = {
+            "datum": rk.get("update", ""),
+            "lista": [{
+                "hely": r.get("current"), "elozo": r.get("previous"), "pont": int(r.get("points") or 0),
+                "nev": r.get("athlete", {}).get("displayName", ""),
+                "orszag": r.get("athlete", {}).get("flagAltText") or r.get("athlete", {}).get("citizenshipCountry", ""),
+                "zaszlo": r.get("athlete", {}).get("flag", ""),
+            } for r in rk.get("ranks", [])],
+        }
+    return out
+
+
 # ---------------- Versenynaptár ----------------
 
 def load_tournaments():
@@ -268,8 +393,21 @@ def main():
         for t in tournaments if t["vege"] >= today
     ]
 
+    try:
+        meccsek = get_matches(tournaments)
+    except Exception as e:
+        meccsek = []
+        hiba.append(f"Meccsek (ESPN): {e}")
+    try:
+        ranglista = get_rankings()
+    except Exception as e:
+        ranglista = {}
+        hiba.append(f"Ranglista (ESPN): {e}")
+
     data = {
         "frissitve": NOW.isoformat(),
+        "meccsek": meccsek,
+        "ranglista": ranglista,
         "hirek": hirek,
         "videok": videok,
         "facebook": [{"nev": f["nev"], "url": f["url"]} for f in cfg["facebook"]],
@@ -280,7 +418,10 @@ def main():
     (DOCS / "data.js").write_text(
         "window.TENISZ = " + json.dumps(data, ensure_ascii=False) + ";\n", encoding="utf-8")
     (DOCS / "versenyek.ics").write_text(build_ics(tournaments), encoding="utf-8", newline="")
-    print(f"Kész: {len(hirek)} hír, {len(videok)} videó, {len(versenyek)} közelgő verseny, {len(hiba)} hiba.")
+    print(f"Kész: {len(hirek)} hír, {len(videok)} videó, {len(meccsek)} meccs, {len(versenyek)} közelgő verseny, "
+          f"{len(hiba)} hiba.")
+    for h in hiba:
+        print("  -", h)
 
 
 if __name__ == "__main__":
