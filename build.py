@@ -223,6 +223,8 @@ def get_sitemap_news(src, max_age, prev):
         _, loc = item
         if loc in prev:
             return prev[loc]
+        import time
+        time.sleep(1.0)  # a WTA kb. másodpercenként egy kérést tűr el hiba nélkül
         try:
             m = page_meta(fetch(loc).decode("utf-8", "replace"))
         except Exception:
