@@ -26,10 +26,35 @@ NS = {
 NOW = datetime.now(timezone.utc)
 
 
-def fetch(url):
-    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept-Language": "hu,en;q=0.8"})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return r.read()
+FETCH_FAILS = {}  # host -> [hibák száma, utolsó hiba]
+
+
+def fetch(url, tries=3):
+    """Letöltés újrapróbálással (a túl sok kérésre adott 429-es és az átmeneti 5xx hibákra)."""
+    import time
+    import urllib.error
+    last = None
+    for i in range(tries):
+        req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept-Language": "hu,en;q=0.8"})
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                return r.read()
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                raise  # pl. nincs élő adás egy YouTube-csatornán – ez nem hiba
+            last = e
+            if e.code not in (429, 500, 502, 503, 504) or i == tries - 1:
+                break
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
+            last = e
+            if i == tries - 1:
+                break
+        time.sleep(3 * (i + 1))
+    host = urllib.parse.urlparse(url).netloc
+    n = FETCH_FAILS.setdefault(host, [0, ""])
+    n[0] += 1
+    n[1] = str(last)
+    raise last
 
 
 def parse_date(s):
@@ -122,12 +147,14 @@ def news_feed_items(src, max_age):
     for i in range(days + 1):
         d = NOW.date() - timedelta(days=i)
         queries.append(f"{src['google_news']} after:{d} before:{d + timedelta(days=1)}")
+    import time
     items = []
     for q in queries:
         try:
             items += parse_feed(fetch(google_news_url(q, lang)))
         except Exception as e:
             print(f"Google Hírek ({src['nev']}, {q}): {e}", file=sys.stderr)
+        time.sleep(1.5)  # ne kérdezzük túl gyorsan egymás után a Google-t
     if not items:
         raise RuntimeError("a Google Hírek egyik napra sem adott találatot")
     return items
@@ -205,7 +232,7 @@ def get_sitemap_news(src, max_age, prev):
         return {"tipus": "hir", "forras": src["nev"], "nyelv": src.get("nyelv", "en"), "cim": m["cim"], "link": loc,
                 "datum": (m["datum"] or item[0]).isoformat(), "kivonat": m["kivonat"], "kep": m["kep"]}
 
-    with ThreadPoolExecutor(max_workers=6) as ex:
+    with ThreadPoolExecutor(max_workers=2) as ex:
         found = [x for x in ex.map(one, urls) if x]
     # az előző futásból átvett cikkekre is érvényesek a (közben esetleg bővített) szűrők
     return [x for x in found if parse_date(x["datum"]) >= NOW - max_age and is_article(src, x["cim"], x.get("kivonat", ""))]
@@ -508,6 +535,9 @@ def main():
     except Exception as e:
         ranglista = {}
         hiba.append(f"Ranglista (ESPN): {e}")
+
+    for host, (n, last) in sorted(FETCH_FAILS.items()):
+        hiba.append(f"{host}: {n} sikertelen letöltés (utolsó hiba: {last})")
 
     data = {
         "frissitve": NOW.isoformat(),
