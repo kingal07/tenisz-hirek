@@ -22,7 +22,7 @@
       "min_szavak": 5,
       "_cimforma": "Az ATP cikkcímei mondatszerűek; a csupa nagy kezdőbetűs címek verseny- vagy egyéb oldalak.",
       "kizart_minta": ["^[^,]+, [^-]+ - [^,]+, ", " VS ", "\\([A-Z]{3}\\) [Vv][Ss]\\.? ",
-                       "^(?:(?:[A-Z0-9][^\\s]*|of|by|de|la|del|the|and|&)\\s*)+$"] },
+                       "^(?:(?:[A-Z0-9][^\\s]*|of|by|de|la|del|the|and|&|presentado|presented|powered|por|di|du|des|le|el|en|y|e|und)\\s*)+$"] },
     { "nev": "WTA", "nyelv": "en", "sitemap": "https://www.wtatennis.com/sitemap/articles.xml", "max": 80,
       "_szures": "Nyereményjátékok, szavazások és tartalom nélküli programoldalak kiszűrése.",
       "kizart": ["Giveaway", "Sweepstakes"],

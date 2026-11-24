@@ -137,12 +137,13 @@ def google_news_url(query, lang):
     return f"https://news.google.com/rss/search?q={q}&hl=en-US&gl=US&ceid=US:en"
 
 
-def news_feed_items(src, max_age):
+def news_feed_items(src, max_age, incremental=False):
     if src.get("url"):
         return parse_feed(fetch(src["url"]))
     # A Google Hírek egy kérésre legfeljebb 100 találatot ad, ezért napokra bontva kérdezzük le.
+    # Ha az előző futásból megvannak a régebbi napok, csak az utolsó két napot kérdezzük újra.
     lang = src.get("google_nyelv", "en")
-    days = max(1, max_age.days)
+    days = 1 if incremental else max(1, max_age.days)
     queries = []
     for i in range(days + 1):
         d = NOW.date() - timedelta(days=i)
@@ -174,9 +175,12 @@ def is_article(src, title, desc="", skip_titles=()):
     return True
 
 
-def get_news(src, max_age, skip_titles=()):
+def get_news(src, max_age, skip_titles=(), prev=None):
+    prev = prev or {}
+    earlier = [h for h in prev.values() if h.get("forras") == src["nev"]]
+    incremental = bool(earlier) and "google_news" in src
     out = []
-    for it in news_feed_items(src, max_age):
+    for it in news_feed_items(src, max_age, incremental):
         if not it["datum"] or it["datum"] < NOW - max_age or not it["link"]:
             continue
         if any(s.lower() in it["cim"].lower() for s in list(skip_titles) + src.get("kizart", [])):
@@ -195,6 +199,13 @@ def get_news(src, max_age, skip_titles=()):
             "cim": cim, "link": it["link"], "datum": it["datum"].isoformat(),
             "kivonat": it["kivonat"], "kep": it["kep"],
         })
+    if incremental:
+        # a régebbi napok cikkei az előző futásból (a szűrők rájuk is érvényesek)
+        links = {x["link"] for x in out}
+        for h in earlier:
+            d = parse_date(h.get("datum"))
+            if h["link"] not in links and d and d >= NOW - max_age and is_article(src, h["cim"], h.get("kivonat", ""), skip_titles):
+                out.append(h)
     return out
 
 
@@ -502,7 +513,7 @@ def main():
             if kind == "hir" and src.get("sitemap"):
                 return get_sitemap_news(src, news_age, prev)
             if kind == "hir":
-                return get_news(src, news_age, cfg.get("kizart_cimek", []))
+                return get_news(src, news_age, cfg.get("kizart_cimek", []), prev)
             return get_videos(src, vid_age, cfg["max_video_csatornankent"], kw)
         except Exception as e:  # egy hibás forrás ne állítsa le az egészet
             hiba.append(f"{src['nev']}: {e}")
